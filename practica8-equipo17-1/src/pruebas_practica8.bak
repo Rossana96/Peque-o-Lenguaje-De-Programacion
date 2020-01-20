@@ -1,0 +1,61 @@
+#lang racket
+
+(define expr01 'foo)
+(define expr02 '1729)
+(define expr03 '12.46)
+(define expr04 
+    '{+ {- 1 2 3} 
+        {* 4 5 6} 
+        {/ 20 2 2} 
+        {% 20 2 3} 
+        {min 1 7 2 9} 
+        {max 1 8 3 5} 
+        {pow 2 3 4} 
+        {sqrt 81}})
+(define expr05
+    '{with {{a 2} {b 3} {c 4}}
+        {+ a b c}})
+(define expr06
+    '{with {{a {+ 2 3}} {b {* 7 4}} {c {max 1 7 2}}}
+        {sqrt {% a b c}}})
+(define expr07
+    '{with {{a 2} {b 3} {c {+ 2 3}} {d {with {{e 1}} e}}}
+        {max a b c d}})
+(define expr08
+    '{with* {{a 2} {b {+ a a}}}
+        b})
+(define expr09
+    '{with* {{a 2} {b {+ a a}} {c {* a b}}}
+        {with* {{d c} {e d}}
+            {+ a b c d e}}})
+(define expr10
+    '{with* {{a x} {b {+ a a}}}
+        {with {{x b}}
+            x}})
+(define expr11
+    'false)
+(define expr12
+    'true)
+(define expr13
+    '{not {and {or {< 1 2 3} {<= 4 5 6} {= 7 7 7}} {or {/= 8 9 10} {> 11 12 13} {>=  14 15 16}}}})
+
+(test/exn (interp (desugar (parse expr01)) (mtSub) (mtSto)) "Identificador libre")
+(test (interp (desugar (parse expr02)) (mtSub) (mtSto)) (numV 1729))
+(test (interp (desugar (parse expr03)) (mtSub) (mtSto)) (numV 12.46))
+(test (interp (desugar (parse expr04)) (mtSub) (mtSto)) (numV 4235))
+(test (interp (desugar (parse expr05)) (mtSub) (mtSto)) (numV 9))
+(test (interp (desugar (parse expr06)) (mtSub) (mtSto)) (numV 2.23606797749979))
+(test (interp (desugar (parse expr07)) (mtSub) (mtSto)) (numV 5))
+(test (interp (desugar (parse expr08)) (mtSub) (mtSto)) 
+    (exprV (op + (list (id 'a) (id 'a))) (aSub 'a (exprV (num 2) (mtSub)) (mtSub))))
+(test (interp (desugar (parse expr09)) (mtSub) (mtSto)) (numV 30))
+(test (interp (desugar (parse expr10)) (mtSub) (mtSto))
+    (exprV (id 'b) 
+           (aSub 'b 
+                 (exprV (op + (list (id 'a) (id 'a))) 
+                 (aSub 'a 
+                       (exprV (id 'x) (mtSub)) (mtSub))) 
+                       (aSub 'a (exprV (id 'x) (mtSub)) (mtSub)))))
+(test (interp (desugar (parse expr11)) (mtSub) (mtSto)) (boolV #f))
+(test (interp (desugar (parse expr12)) (mtSub) (mtSto)) (boolV #t))
+(test (interp (desugar (parse expr13)) (mtSub) (mtSto)) (boolV #f))

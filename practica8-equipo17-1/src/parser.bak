@@ -1,0 +1,94 @@
+#lang plai
+
+(require "grammars.rkt")
+
+;; Analizador sintáctico.
+;; Regresa el árbol de sintaxis abstracto asociado a la sintaxis concreta.
+;; parse: s-expression -> WAE.
+(define (parse sexp)
+    (match sexp
+    ['true (boolS #t)]
+    ['false (boolS #f)]
+    [(? symbol?) (match sexp
+                   ['empty (listS '())]
+                   [else (idS sexp)])]
+    [(? number?) (numS sexp)]
+    [(list 'with bindings body)
+     (withS (map (lambda (bindings)
+                   (bindingS (car bindings)
+                             (parse (last bindings))))
+                 bindings)
+            (parse body))]
+    [(list 'with* bindings body)
+     (withS* (map (lambda (bindings)
+                    (bindingS (car bindings)
+                              (parse (last bindings))))
+                  bindings) (parse body))]
+    [(list 'rec bindings body)
+     (recS (map (λ (lob)
+                  (bindingS (car lob)
+                            (parse (last lob))))
+                bindings)
+           (parse body))]
+    [(list 'try/catch bindings body)
+     (try/catchS (map (λ (lob)
+                        (bindingS (car lob)
+                                  (parse (last lob))))
+                      bindings)
+                 (parse body))]
+    [(list 'fun param body)
+     (funS param (parse body))]
+    [(list 'if test-expr then-expr else-expr)
+     (ifS (parse test-expr) (parse then-expr) (parse else-expr))]
+    [(cons x xs)
+     (match x
+       [(or '+ '- '* '/ '% 'min 'max 'pow 'sqrt
+            '< '<= '= '/= '> '>= 'zero? 'not 'and
+            'or 'head 'tail 'append 'empty? 'inc 'dec)
+        (opS (elige x) (map parse xs))]
+       ['cond
+        (condS (map (lambda (loc)
+                      (if (equal? (car loc) 'else)
+                          (else-cond (parse (last loc)))
+                          (condition (parse (car loc))
+                                     (parse (last loc)))))
+                    xs))]
+       ['list (listS (map (λ (elem)
+                            (parse elem))
+                          xs))]
+       ['throws (throwsS (last xs))]
+       ['newbox (newboxS (parse (last xs)))]
+       ['openbox (openboxS (parse (last xs)))]
+       ['setbox (setboxS (parse (car xs)) (parse (last xs)))]
+       ['seqn (seqnS (map parse xs))]
+       [else (appS (parse x) (map parse xs))])]))
+
+;; Realiza un mapeo entre las operaciones del lenguaje anfitrión y el lenguaje objetivo.
+;; elige: symbol -> procedure
+(define (elige s)
+   (match s
+      ['+    +]
+      ['-    -]
+      ['*    *]
+      ['/    /]
+      ['%    mmodulo]
+      ['min  min]
+      ['max  max]
+      ['pow  mexpt]
+      ['sqrt sqrt]
+      ['inc  add1]
+      ['dec  sub1]
+      ['<    <]
+      ['<=   <=]
+      ['=    mequal?]
+      ['/=   not-equal?]
+      ['>    >]
+      ['>=   >=]
+      ['zero? zero?]
+      ['not  not]
+      ['and  mand]
+      ['or   mor]
+      ['head car]
+      ['tail cdr]
+      ['append append]
+      ['empty? empty?]))

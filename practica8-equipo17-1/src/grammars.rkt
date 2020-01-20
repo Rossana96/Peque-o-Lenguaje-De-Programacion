@@ -1,0 +1,169 @@
+;Autor Rossana Palma López
+#lang plai
+
+;; Predicado que permite validar los operadores.
+(define (operador-valido? f)
+    (or (equal? f +) 
+        (equal? f -)
+        (equal? f *) 
+        (equal? f /) 
+        (equal? f mmodulo)
+        (equal? f min)
+        (equal? f max) 
+        (equal? f mexpt)
+        (equal? f sqrt)
+        (equal? f add1)
+        (equal? f sub1)
+        (equal? f <)
+        (equal? f <=)
+        (equal? f mequal?)
+        (equal? f not-equal?)
+        (equal? f >)
+        (equal? f >=)
+        (equal? f zero?)
+        (equal? f not)
+        (equal? f mand)
+        (equal? f mor)
+        (equal? f car)
+        (equal? f cdr)
+        (equal? f append)
+        (equal? f empty?)))
+
+;; Predicado para restringir el tipo de números.
+(define (numero-valido? n)
+    (or (integer? n) (real? n)))
+
+;; Predicado para trabajar con cajas que guarden el resultado de evaluación.
+(define (boxed-RCBAEL/L-Value? v)
+	(and (box? v) (BERCFBAEL/L-Value? (unbox v))))
+
+;; Función que calcula el módulo de forma multiparamétrica.
+;; mmodulo: number number ... -> number
+(define (mmodulo . args)
+  (letrec (
+           [mfoldl (λ (f v lst)
+                     (match lst
+                       ['() v]
+                       [(cons x xs) (mfoldl f (f v x) xs)]))])
+    (mfoldl modulo (car args) (cdr args))))
+
+;; Función que calcula la potencia de forma multiparamétrica.
+;; mmexpt: number number ... -> number
+(define (mexpt . args)
+  (letrec (
+           [aux (λ (l)
+                  (match l
+                    ['() 1]
+                    [(list x) x]
+                    [(cons x xs) (aux (append (list (expt x (car xs))) (cdr xs)))]))])
+    (aux args)))
+
+;; Función que indica si las expresiones pasadas como parámetro son iguales.
+;; mequal?: any any ... -> boolean
+(define (mequal? . args)
+  (letrec (
+           [aux (λ (l)
+                  (match l
+                    ['() #t]
+                    [(list x) #t]
+                    [(cons x xs) (if (equal? x (car xs)) (aux xs) #f)]))])
+    (aux args)))
+
+;; Función que indica si las expresiones pasadas como parámetro son distintas.
+;; not-equal?: any any ... -> boolean
+(define (not-equal? . args)
+  (letrec (
+           [aux (λ (l)
+                  (match l
+                    ['() #t]
+                    [(list x) #f]
+                    [(list x y) (not (equal? x y))]
+                    [(cons x xs) (if (not (equal? x (car xs))) (aux xs) #f)]))])
+    (aux args)))
+
+;; Función que calcula la conjunción de forma multiparamétrica.
+;; mand: boolean boolean ... -> boolean
+(define (mand . args)
+  (foldr (λ (x y) (and x y)) #t args))
+
+;; mor: boolean boolean ... -> boolean
+(define (mor . args)
+  (foldr (λ (x y) (or x y)) #f args))
+
+;; TDA para representar el árbol de sintaxis abstracto del lenguaje CFWBAE/L.
+(define-type BERCFWBAEL/L
+    [idS        (i symbol?)]
+    [numS       (n numero-valido?)]
+    [boolS      (b boolean?)]
+    [listS      (elems (listof BERCFWBAEL/L?))]
+    [opS        (f operador-valido?) (args (listof BERCFWBAEL/L?))]
+    [ifS        (test-expr BERCFWBAEL/L?) (then-expr BERCFWBAEL/L?) (else-expr BERCFWBAEL/L?)]
+    [condS      (cases (listof Condition?))]
+    [withS      (bindings (listof bindingS?)) (body BERCFWBAEL/L?)]
+    [withS*     (bindings (listof bindingS?)) (body BERCFWBAEL/L?)]
+    [recS       (bindings (listof bindingS?)) (body BERCFWBAEL/L?)]
+    [funS       (params (listof symbol?)) (body BERCFWBAEL/L?)]
+    [appS       (fun-expr BERCFWBAEL/L?) (args (listof BERCFWBAEL/L?))]
+    [throwsS    (id symbol?)]
+    [try/catchS (bindings (listof bindingS?)) (body BERCFWBAEL/L?)]
+    [newboxS    (content BERCFWBAEL/L?)]
+    [openboxS   (box BERCFWBAEL/L?)]
+    [setboxS    (box BERCFWBAEL/L?) (content BERCFWBAEL/L?)]
+    [seqnS      (actions (listof BERCFWBAEL/L?))])
+
+;; TDA para asociar identificadores con valores con azúcar sintáctica.
+(define-type BindingS
+    [bindingS (name symbol?) (value BERCFWBAEL/L?)])
+
+;; TDA para asociar identificadores con valores sin azúcar sintáctica.
+(define-type Binding
+	[binding (name symbol?) (value BERCFBAEL/L?)])
+
+;; TDA que es una versión sin azúcar sintáctica del TDA CFWBAE/L.
+(define-type BERCFBAEL/L
+    [id        (i symbol?)]
+    [num       (n numero-valido?)]
+    [bool      (b boolean?)]
+    [lisT      (elems (listof BERCFBAEL/L?))]
+    [op        (f operador-valido?) (args (listof BERCFBAEL/L?))]
+    [iF        (test-expr BERCFBAEL/L?) (then-expr BERCFBAEL/L?) (else-expr BERCFBAEL/L?)]
+    [fun       (params (listof symbol?)) (body BERCFBAEL/L?)]
+    [rec       (bindings (listof Binding?)) (body BERCFBAEL/L?)]
+    [app       (fun-expr BERCFBAEL/L?) (args (listof BERCFBAEL/L?))]
+    [throws    (id symbol?)]
+    [try/catch (bindings (listof Binding?)) (body BERCFBAEL/L?)]
+    [newbox    (content BERCFBAEL/L?)]
+    [openbox   (box BERCFBAEL/L?)]
+    [setbox    (box BERCFBAEL/L?) (content BERCFBAEL/L?)]
+    [seqn      (actions (listof BERCFBAEL/L?))])
+
+;; TDA para representar el ambiente de evaluación.
+(define-type Env
+  [mtSub]
+  [aSub (name symbol?) (index integer?) (env Env?)]
+  [aRecSub (name symbol?) (index integer?) (env Env?)])
+
+;; TDA para representar los resultados devueltos por el intérprete.
+(define-type BERCFBAEL/L-Value
+    [numV       (n number?)]
+    [boolV      (b boolean?)]
+    [closureV   (params (listof symbol?)) (body BERCFBAEL/L?) (env Env?)]
+    [exprV      (expr BERCFBAEL/L?) (env Env?)]
+    [listV      (elems (listof BERCFBAEL/L-Value?))]
+    [exceptionV (id symbol?) (continuation continuation?)]
+    [boxV       (index integer?)])
+
+;; TDA para representar condiciones.
+(define-type Condition
+    [condition (test-expr BERCFWBAEL/L?) (then-expr BERCFWBAEL/L?)]
+    [else-cond (else-expr BERCFWBAEL/L?)])
+
+;; TDA para representar el Heap.
+(define-type Store
+  [mtSto]
+  [aSto (index integer?) (value BERCFBAEL/L-Value?) (sto Store?)]
+  [aRecSto (index integer?) (value boxed-RCBAEL/L-Value?) (sto Store?)])
+
+;; Para implementar la técnica Store Passing Style
+(define-type Value*Store
+	[v*s (value BERCFBAEL/L-Value?) (store Store?)])
